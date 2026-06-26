@@ -10,9 +10,23 @@ namespace ErsmAnim
 {
     public partial class MainWindow
     {
-        private void CanvasContainer_MouseDown(object sender, MouseButtonEventArgs e)
+        private System.Windows.Controls.Canvas GetActiveLayerCanvas()
         {
             if (activeLayer == null)
+                return null;
+
+            // Prefer explicit Canvas pointer (kept in sync by MainWindow when switching frames),
+            // otherwise try to resolve via per-layer per-frame canvases.
+            if (activeLayer.Canvas != null)
+                return activeLayer.Canvas;
+
+            return activeLayer.GetCanvasForFrameIndex(activeFrameIndex);
+        }
+
+        private void CanvasContainer_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            var targetCanvas = GetActiveLayerCanvas();
+            if (targetCanvas == null)
             {
                 return;
             }
@@ -27,19 +41,23 @@ namespace ErsmAnim
                 Stroke = isEraser ? Brushes.White : new SolidColorBrush(currentColor)
             };
 
-            currentLine.Points.Add(e.GetPosition(activeLayer.Canvas));
-            activeLayer.Canvas.Children.Add(currentLine);
+            currentLine.Points.Add(e.GetPosition(targetCanvas));
+            targetCanvas.Children.Add(currentLine);
 
-            undoStack.Push(new DrawingAction(activeLayer.Canvas, currentLine));
+            undoStack.Push(new DrawingAction(targetCanvas, currentLine));
             redoStack.Clear();
             Mouse.Capture(CanvasContainer);
         }
 
         private void CanvasContainer_MouseMove(object sender, MouseEventArgs e)
         {
-            if (isDrawing && currentLine != null && activeLayer != null)
+            if (isDrawing && currentLine != null)
             {
-                currentLine.Points.Add(e.GetPosition(activeLayer.Canvas));
+                var targetCanvas = GetActiveLayerCanvas();
+                if (targetCanvas != null)
+                {
+                    currentLine.Points.Add(e.GetPosition(targetCanvas));
+                }
             }
         }
 
@@ -62,13 +80,14 @@ namespace ErsmAnim
 
         private void ClearBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (activeLayer == null)
+            var targetCanvas = GetActiveLayerCanvas();
+            if (targetCanvas == null)
             {
                 return;
             }
 
-            activeLayer.Canvas.Children.Clear();
-            RemoveUndoItemsForCanvas(activeLayer.Canvas);
+            targetCanvas.Children.Clear();
+            RemoveUndoItemsForCanvas(targetCanvas);
             redoStack.Clear();
         }
 
@@ -121,9 +140,14 @@ namespace ErsmAnim
 
         private void RemoveUndoItemsForMissingCanvases()
         {
+            // Collect all live canvases from frames -> layer -> per-frame canvases (or fallback Canvas).
             var canvases = frames
                 .SelectMany(frame => frame.Layers)
-                .Select(layer => layer.Canvas)
+                .SelectMany(layer =>
+                    (layer.Canvases != null && layer.Canvases.Count > 0)
+                        ? layer.Canvases
+                        : new List<System.Windows.Controls.Canvas> { layer.Canvas })
+                .Where(c => c != null)
                 .ToList();
 
             RebuildStackWithout(undoStack, action => !canvases.Contains(action.LayerCanvas));

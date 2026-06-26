@@ -114,6 +114,7 @@ namespace ErsmAnim
 
         private void AddFrame()
         {
+            // new frame index before adding
             int newIndex = frames.Count;
 
             var button = new Button
@@ -131,17 +132,52 @@ namespace ErsmAnim
                 ClipToBounds = true,
                 Visibility = Visibility.Hidden
             };
+
             var frame = new AnimationFrame { FrameCanvas = frameCanvas };
-            frameCanvas.SizeChanged += (sender, e) => ResizeFrameLayers(frame);
+
+            // When size changes, resize all layer canvases that correspond to this frame.
+            frameCanvas.SizeChanged += (sender, e) =>
+            {
+                // find the current index of this frame (frames can be reindexed)
+                int idx = frames.IndexOf(frame);
+                if (idx >= 0)
+                {
+                    ResizeFrameLayers(frame, idx);
+                }
+            };
 
             CanvasContainer.Children.Add(frameCanvas);
             frames.Add(frame);
 
+            // For every existing layer (layers now own canvases per frame), create and attach a canvas for this frame
+            foreach (var layer in layers)
+            {
+                var layerCanvas = new Canvas
+                {
+                    Background = Brushes.Transparent,
+                    ClipToBounds = true
+                };
+
+                StretchLayerToFrame(layerCanvas, frameCanvas);
+                frameCanvas.Children.Add(layerCanvas);
+
+                // keep per-frame canvas aligned in the layer
+                layer.Canvases.Add(layerCanvas);
+
+                // keep compatibility: add layer reference to this frame
+                frame.Layers.Add(layer);
+            }
+
+            // If there are no layers yet, create the default first layer.
+            if (layers.Count == 0)
+            {
+                AddLayer("Layer 1"); // AddLayer will create canvases for existing frames
+                UpdateLayersList(0);
+            }
+
             if (frames.Count == 1)
             {
                 frameCanvas.Visibility = Visibility.Visible;
-                AddLayerToFrame(frame, "Layer 1");
-                UpdateLayersList(0);
             }
 
             ReindexFrames();
@@ -206,10 +242,26 @@ namespace ErsmAnim
                 return;
             }
 
-            frames[activeFrameIndex].FrameCanvas.Visibility = Visibility.Hidden;
-            frames.RemoveAt(activeFrameIndex);
-            TimelinePanel.Children.RemoveAt(activeFrameIndex);
-            CanvasContainer.Children.RemoveAt(activeFrameIndex);
+            // Remove per-layer canvases at this frame index so layers stay aligned
+            int removeIndex = activeFrameIndex;
+            foreach (var layer in layers)
+            {
+                if (layer.Canvases.Count > removeIndex)
+                {
+                    var c = layer.Canvases[removeIndex];
+                    // Remove from visual tree if still present
+                    if (c != null && frames[removeIndex].FrameCanvas.Children.Contains(c))
+                    {
+                        frames[removeIndex].FrameCanvas.Children.Remove(c);
+                    }
+                    layer.Canvases.RemoveAt(removeIndex);
+                }
+            }
+
+            frames[removeIndex].FrameCanvas.Visibility = Visibility.Hidden;
+            frames.RemoveAt(removeIndex);
+            TimelinePanel.Children.RemoveAt(removeIndex);
+            CanvasContainer.Children.RemoveAt(removeIndex);
 
             activeFrameIndex = ClampFrameIndex(activeFrameIndex);
             ReindexFrames();

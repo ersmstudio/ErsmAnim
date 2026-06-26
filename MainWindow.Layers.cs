@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -7,25 +8,44 @@ namespace ErsmAnim
 {
     public partial class MainWindow
     {
-        private void AddLayerToFrame(AnimationFrame frame, string name)
+        // New global list of layers — layers now drive per-frame canvases.
+        private readonly List<DrawingLayer> layers = new List<DrawingLayer>();
+
+        private void AddLayer(string name)
         {
-            var layerCanvas = new Canvas
-            {
-                Background = Brushes.Transparent,
-                ClipToBounds = true
-            };
-            StretchLayerToFrame(layerCanvas, frame.FrameCanvas);
-
-            frame.FrameCanvas.Children.Add(layerCanvas);
-
             var layer = new DrawingLayer
             {
-                Name = name,
-                Canvas = layerCanvas
+                Name = name
             };
 
-            frame.Layers.Add(layer);
+            // For every existing frame, create and attach a canvas for this layer.
+            for (int i = 0; i < frames.Count; i++)
+            {
+                var frame = frames[i];
+
+                var layerCanvas = new Canvas
+                {
+                    Background = Brushes.Transparent,
+                    ClipToBounds = true
+                };
+
+                StretchLayerToFrame(layerCanvas, frame.FrameCanvas);
+
+                frame.FrameCanvas.Children.Add(layerCanvas);
+
+                // Keep the per-frame list inside DrawingLayer in sync.
+                layer.Canvases.Add(layerCanvas);
+
+                // Keep existing AnimationFrame.Layers for compatibility: add reference to this layer.
+                frame.Layers.Add(layer);
+            }
+
+            // If there are no frames yet, layer.Canvases will be empty — canvases should be created when frames are added.
+            layers.Add(layer);
             activeLayer = layer;
+
+            // Select the new layer in UI
+            UpdateLayersList(layers.Count - 1);
         }
 
         private void StretchLayerToFrame(Canvas layerCanvas, Canvas frameCanvas)
@@ -34,68 +54,72 @@ namespace ErsmAnim
             layerCanvas.Height = frameCanvas.ActualHeight;
         }
 
-        private void ResizeFrameLayers(AnimationFrame frame)
+        private void ResizeFrameLayers(AnimationFrame frame, int frameIndex)
         {
-            foreach (var layer in frame.Layers)
+            // Resize all layer canvases that correspond to this frame index.
+            foreach (var layer in layers)
             {
-                StretchLayerToFrame(layer.Canvas, frame.FrameCanvas);
+                var c = layer.GetCanvasForFrameIndex(frameIndex);
+                if (c != null)
+                {
+                    StretchLayerToFrame(c, frame.FrameCanvas);
+                }
             }
         }
 
         private void AddLayerBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (frames.Count == 0)
-            {
-                return;
-            }
-
-            var frame = frames[activeFrameIndex];
-            AddLayerToFrame(frame, "Layer " + (frame.Layers.Count + 1));
-            UpdateLayersList(frame.Layers.Count - 1);
+            AddLayer("Layer " + (layers.Count + 1));
         }
 
         private void RemoveLayerBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (frames.Count == 0 || LayersList.SelectedIndex < 0)
-            {
-                return;
-            }
-
-            var frame = frames[activeFrameIndex];
-            if (frame.Layers.Count <= 1)
+            if (layers.Count == 0 || LayersList.SelectedIndex < 0)
             {
                 return;
             }
 
             int removedIndex = LayersList.SelectedIndex;
-            frame.FrameCanvas.Children.Remove(frame.Layers[removedIndex].Canvas);
-            frame.Layers.RemoveAt(removedIndex);
+            var layer = layers[removedIndex];
+
+            // Remove this layer's canvases from every frame and remove the layer reference from each frame's Layers list
+            for (int i = 0; i < frames.Count; i++)
+            {
+                var frame = frames[i];
+
+                // Remove canvas if it exists in the frame's visual tree
+                var c = layer.GetCanvasForFrameIndex(i);
+                if (c != null && frame.FrameCanvas.Children.Contains(c))
+                {
+                    frame.FrameCanvas.Children.Remove(c);
+                }
+
+                // Remove the layer reference from the frame's Layers list if present
+                if (frame.Layers.Contains(layer))
+                {
+                    frame.Layers.Remove(layer);
+                }
+            }
+
+            layers.RemoveAt(removedIndex);
 
             int nextIndex = System.Math.Max(0, removedIndex - 1);
             UpdateLayersList(nextIndex);
-            RemoveUndoItemsForMissingCanvases();
         }
 
         private void UpdateLayersList(int selectedIndex = 0)
         {
             LayersList.Items.Clear();
 
-            if (frames.Count == 0)
-            {
-                activeLayer = null;
-                return;
-            }
-
-            var layers = frames[activeFrameIndex].Layers;
-            foreach (var layer in layers)
-            {
-                LayersList.Items.Add(layer);
-            }
-
             if (layers.Count == 0)
             {
                 activeLayer = null;
                 return;
+            }
+
+            foreach (var layer in layers)
+            {
+                LayersList.Items.Add(layer);
             }
 
             selectedIndex = System.Math.Max(0, System.Math.Min(layers.Count - 1, selectedIndex));
@@ -105,9 +129,9 @@ namespace ErsmAnim
 
         private void LayersList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (LayersList.SelectedIndex >= 0 && frames.Count > 0)
+            if (LayersList.SelectedIndex >= 0)
             {
-                activeLayer = frames[activeFrameIndex].Layers[LayersList.SelectedIndex];
+                activeLayer = layers[LayersList.SelectedIndex];
             }
         }
 
@@ -115,6 +139,7 @@ namespace ErsmAnim
         {
             if (sender is CheckBox checkBox && checkBox.DataContext is DrawingLayer layer)
             {
+                // Toggle visibility for the whole layer (all frames)
                 layer.IsVisible = checkBox.IsChecked == true;
             }
         }
