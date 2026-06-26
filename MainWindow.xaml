@@ -1,0 +1,125 @@
+﻿<Window x:Class="ErsmAnim.MainWindow"
+
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mini 2D Animator" Height="600" Width="900"
+        Loaded="Window_Loaded" SizeChanged="Window_SizeChanged">
+    <Window.Resources>
+        <!-- Frame Button Style -->
+        <Style x:Key="FrameButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Background" Value="#d9d9d9"/>
+            <Setter Property="BorderBrush" Value="#555"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#eeeeee"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#cccccc"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Timeline area -->
+        <Grid DockPanel.Dock="Bottom" Height="90" MouseWheel="Timeline_MouseWheel">
+            <!-- Background grid lines -->
+            <Canvas x:Name="TimelineGrid" IsHitTestVisible="False" Panel.ZIndex="1"/>
+            <!-- Keyframes marks -->
+            <Canvas x:Name="KeyframeLayer" IsHitTestVisible="False" Panel.ZIndex="2" Height="90" VerticalAlignment="Top"/>
+            <!-- Timeline Scroll region -->
+            <DockPanel Background="#2b2b2b" Panel.ZIndex="3">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" x:Name="TimelineScroll">
+                    <StackPanel Orientation="Horizontal" Margin="10" x:Name="TimelinePanel"/>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- Cursor (on top) -->
+            <Rectangle x:Name="TimelineCursor"
+                       Width="3" Height="80" Fill="Red"
+                       HorizontalAlignment="Left" VerticalAlignment="Center"
+                       MouseDown="TimelineCursor_MouseDown"
+                       MouseMove="TimelineCursor_MouseMove"
+                       MouseUp="TimelineCursor_MouseUp"
+                       Panel.ZIndex="10" Margin="0,0,0,0"/>
+        </Grid>
+
+        <!-- Toolbar -->
+        <ToolBar DockPanel.Dock="Top" Height="40">
+            <Button x:Name="BrushBtn" Content="Brush" Click="BrushBtn_Click"/>
+            <Button x:Name="EraserBtn" Content="Eraser" Click="EraserBtn_Click"/>
+            <Button x:Name="ClearBtn" Content="Clear" Click="ClearBtn_Click"/>
+            <Separator/>
+            <Button x:Name="ColorBtn" Content="Color" Click="ColorBtn_Click"/>
+            <Separator/>
+            <Button x:Name="UndoBtn" Content="Undo" Click="UndoBtn_Click"/>
+            <Button x:Name="RedoBtn" Content="Redo" Click="RedoBtn_Click"/>
+            <Separator/>
+            <Button Content="Add Frame" Click="AddFrameBtn_Click"/>
+            <Button Content="Remove Frame" Click="RemoveFrameBtn_Click"/>
+        </ToolBar>
+
+        <!-- Main Area -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Layers Panel -->
+            <StackPanel Grid.Column="0" Margin="5">
+                <TextBlock Text="Layers" FontWeight="Bold" Margin="0,0,0,5"/>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <ListBox x:Name="LayersList" Grid.Row="0" SelectionChanged="LayersList_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <CheckBox IsChecked="{Binding IsVisible}" Width="20"
+                                              Checked="LayerVisibilityChanged"
+                                              Unchecked="LayerVisibilityChanged"/>
+                                    <TextBlock Text="{Binding Name}" Margin="5,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Button Content="Add Layer" Grid.Row="1" Click="AddLayerBtn_Click" Margin="0,5,0,0"/>
+                    <Button Content="Remove Layer" Grid.Row="2" Click="RemoveLayerBtn_Click" Margin="0,5,0,0"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- Canvas Area -->
+            <Grid Grid.Column="1" x:Name="CanvasContainer" Background="White"
+                  MouseDown="CanvasContainer_MouseDown"
+                  MouseMove="CanvasContainer_MouseMove"
+                  MouseUp="CanvasContainer_MouseUp">
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

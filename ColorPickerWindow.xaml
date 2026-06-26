@@ -1,0 +1,47 @@
+﻿<Window x:Class="ErsmAnim.ColorPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Color Picker" Height="300" Width="400">
+    <Grid Margin="10">
+        <!-- معاينة اللون الحالي -->
+        <Rectangle x:Name="ColorPreview" Width="100" Height="100" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+
+        <!-- Sliders للـ RGB -->
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="120,0,0,0">
+            <!-- Red -->
+            <TextBlock Text="Red"/>
+            <Slider x:Name="RedSlider" Minimum="0" Maximum="255" ValueChanged="Slider_ValueChanged"
+                    Width="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    TickPlacement="BottomRight"
+                    AutoToolTipPlacement="TopLeft"
+                    AutoToolTipPrecision="0"
+                    IsDirectionReversed="False"/>
+
+            <!-- Green -->
+            <TextBlock Text="Green" Margin="0,10,0,0"/>
+            <Slider x:Name="GreenSlider" Minimum="0" Maximum="255" ValueChanged="Slider_ValueChanged"
+                    Width="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    TickPlacement="BottomRight"
+                    AutoToolTipPlacement="TopLeft"
+                    AutoToolTipPrecision="0"/>
+
+            <!-- Blue -->
+            <TextBlock Text="Blue" Margin="0,10,0,0"/>
+            <Slider x:Name="BlueSlider" Minimum="0" Maximum="255" ValueChanged="Slider_ValueChanged"
+                    Width="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    TickPlacement="BottomRight"
+                    AutoToolTipPlacement="TopLeft"
+                    AutoToolTipPrecision="0"/>
+        </StackPanel>
+
+        <!-- زر التأكيد -->
+        <Button Content="OK" Click="OKButton_Click" Width="80" Height="30"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,10"/>
+    </Grid>
+</Window>
